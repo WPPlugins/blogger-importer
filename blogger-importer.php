@@ -6,7 +6,7 @@ Plugin URI: http://wordpress.org/extend/plugins/blogger-importer/
 Description: Imports posts, comments, images and tags from a Blogger blog then migrates authors to WordPress users.
 Author: wordpressdotorg
 Author URI: http://wordpress.org/
-Version: 0.7
+Version: 0.8
 License: GPLv2
 License URI: http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 */
@@ -111,6 +111,7 @@ if (class_exists('WP_Importer'))
             $errormsg = __('Error occurred getting OAuth tokens from Google', 'blogger-importer');
 
             echo "
+                       
 		<div class='wrap'>
 		" . screen_icon() . "
 		<h2>$title</h2>
@@ -170,7 +171,7 @@ if (class_exists('WP_Importer'))
                 $blog->title = $item->get_title();
                 $blog->summary = $item->get_description();
 
-                //ID is of the form tag:blogger.com,1999:blog-417730729915399755
+                //id is of the form tag:blogger.com,1999:blog-417730729915399755
                 //We need that number from the end
                 $rawid = explode('-', $item->get_id());
                 $blog->id = $rawid[count($rawid) - 1];
@@ -234,18 +235,12 @@ if (class_exists('WP_Importer'))
   
         /**
          * A clean return function for Ajax calls,
-         * discards any debug messages or other fluff already sent
-         * N.B. "headers already sent" errors occurring in debug, perhaps need to turn on output buffering??
-         * Note this might not be an issue with the switch to "proper" ajax handling
          * http://www.dagondesign.com/articles/wordpress-hook-for-entire-page-using-output-buffering/
+         * 11/3/2014 Simplified this as the output buffer cleaning rarely seemed to work
          */
         
         function ajax_die($data)
         {
-            if (ob_get_level() != 0) {
-                ob_clean();
-            }
-            
            	header( 'Content-Type: text/plain' );
             echo $data;
             exit;
@@ -276,13 +271,8 @@ if (class_exists('WP_Importer'))
 
         function get_author_form($blog)
         {
-            global $current_user; //This is not used, perhaps it should be the "default" for the call to get_user_options?
-
-            if (!isset($blog->authors))
-            {
-                $blog->get_authors();
-                $blog->save_vars();
-            }
+            //Present a form to the users so they can re-map the imported authors to Wordpress users.
+            $blog->get_authors();
 
             $directions = sprintf(__('All posts were imported with the current user as author. Use this form to move each Blogger user&#8217;s posts to a different WordPress user. You may <a href="%s">add users</a> and then return to this page and complete the user mapping. This form may be used as many times as you like until you activate the &#8220;Restart&#8221; function below.',
                 'blogger-importer'), 'users.php');
@@ -295,8 +285,6 @@ if (class_exists('WP_Importer'))
 
             foreach ($blog->authors as $i => $author)
                 $rows .= "<tr><td><label for='authors[$i]'>{$author[0]}</label></td><td><select name='authors[$i]' id='authors[$i]'>" . $this->get_user_options($author[1]) . "</select></td></tr>";
-
-            
 
             return "<div class='wrap'>" . screen_icon() . "<h2>$heading</h2><h3>$blogtitle</h3><p>$directions</p><form action='index.php?import=blogger&amp;noheader=true&saveauthors=1' method='post'><input type='hidden' name='blog' value='" .
                 esc_attr($blog->ID) . "' />".wp_nonce_field( 'blogger-importer-saveauthors', 'blogger-importer-saveauthors-nonce',true,false )."<table cellpadding='5'><thead><td>$mapthis</td><td>$tothis</td></thead>$rows<tr><td></td><td class='submit'><input type='submit' class='button authorsubmit' value='$submit' /></td></tr></table></form></div>";

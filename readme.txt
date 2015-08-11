@@ -37,6 +37,12 @@ The Blogger Importer imports your blog data from a Google Blogger site into a Wo
 The importer connects your server to the blogger server to copy across the posts. For this to work you need to have connectivity from the server to the internet and also have at least one of the remote access protocols enabled, e.g. curl, streams or fsockopen. You can use the Core Control plugin to test if these are working correctly. The importer connects to Google over a secure connection so OpenSSL needs to be enabled on your server. 
 The importer uses the SimplePie classes to read and process the data from blogger so you will need the php-xml module installed on your webserver.
 
+= Preparation =
+
+It is strongly recommended that you **disable all other plugins and caching** during the import.
+
+This will ensure that the information transfers across as smoothly as possible and that posts and comments are correctly transferrred.
+
 = How to use =
 
 1. Blogger Importer is available from the WordPress Tools->Import screen.
@@ -56,7 +62,7 @@ You can now remove the importer plugin if you no longer need to use it.
 
 = How do I re-import? =
 
-Press the clear account information button, then re-connect to blogger and re-import, the importer is designed not to re-import the same posts. If you need to do a full re-import then delete the posts and then empty the trash before re-importing.
+From the list of blogs, press refresh blog list, this should update the counts and re-enable the import button. The importer is designed not to re-import the same posts. If you need to do a full re-import then delete the posts and then empty the trash before re-importing.
 
 = Once I've imported the posts do I need to keep the plugin? =
 
@@ -100,7 +106,7 @@ No, WordPress and Blogger handle the permalinks differently. However, it is poss
 
 = My posts and comments moved across but some things are stripped out =
 
-The importer uses the SimplePie classes to process the data, these in turn use a Simplepie_Sanitize class to remove potentially malicious code from the source data.
+The importer uses the SimplePie classes to process the data, these in turn use a Simplepie_Sanitize class to remove potentially malicious code from the source data. If the php-xml module is not installed then this may result in your entire comment text being stripped out and the error "PHP Warning: DOMDocument not found, unable to use sanitizer" to appear in your logs. 
 
 = The dashboard is reporting that there are 0 comments in blogger =
 
@@ -120,13 +126,13 @@ Try the core control plugin as mentioned above. Also you try changing the consta
 
 = Why does it keep stopping? = 
 
-The importer uses JQuery to process it's form so problems with it not refreshing or stalling could be due to an incompatibility with another plugin, disable any other plugins and see if the problem persists.
+The imported is not expect to stop, so this could be to an incompatibility with another plugin, disable any other plugins and see if the problem persists. Also check your error log to see if any error messages have been reported.
 
 = It does not seem to be processing the images =
 
-Check you've not run out of disk space on your server. Because Wordpress stores the files in multiple resolutions one image might take up as much as 250kb spread across 5 files of different sizes.
+The most common reasons for this are lack of memory and timeouts, these should appear in your error log. Also check you've not run out of disk space on your server. Because Wordpress stores the files in multiple resolutions one image might take up as much as 250kb spread across 5 files of different sizes.
 
-= How do I make the images bigger or smaller? =
+= How do I make the images bigger or smaller? / My images are fuzzy =
 
 The importer will attempt to download a large version of images but it displays them on the blog at the medium size. If you go into your settings->media options then you can display a different size "medium" image by default. You can't make this bigger than the file that has been downloaded which is where the next setting comes in.  
 
@@ -135,6 +141,8 @@ The default size for the large images is 1024, you can change this to an even la
 const LARGE_IMAGE_SIZE = '1024';
 
 The file downloaded won't be bigger than the origional file so if it was only 800x600 to start with then it won't be any bigger than that.
+
+If your origional blog has hardcoded width and height values that are larger than the medium size settings then that might result in your images becoming fuzzy. 
 
 = I've run out of disk space processing the images = 
 
@@ -172,8 +180,27 @@ The following were referenced for implementing the images and links
 * Review using get_posts or get_comments with the appropriate parameters to get the counts and exists instead of using SQL
 * Incorrect notice, PHP Notice: The data could not be converted to UTF-8. You MUST have either the iconv or mbstring extension installed. This occurs even when Iconv is installed, could be related to Blogger reporting 0 comments
 * When the importer is running it's not possible to stop it using the stop button
+* Blogger's count of comments include those not linked to a post e.g. the post has been deleted.
+
+== Filters and Actions ==
+
+These actions and filters have been added so that you can extend the functionality of the importer without needing to modify the code.
+
+Action - import_start - This is run when the import starts processing the records for a new blog
+
+Action - import_done - This is run when the import finishes processing the records for a blog.
+
+Filter - blogger_importer_congrats - Passes the list of options shown to the user when the blog is complete, options can be added or removed.
 
 == Changelog ==
+
+= 0.8 =
+* Fixed issue with the authors form not showing a the list of authors for a blog
+* Simplified check for duplicate comments
+* Code simplified for get_authors and get_author_form
+* Fixed issue with wpdb prepare and integer keys by switching to a sub select query
+* Make comment handling more robust
+* Simplified functions to reduce messages in the log
 
 = 0.7 =
 * Fixed issue with drafts not being imported in the right state 
@@ -243,6 +270,6 @@ The following were referenced for implementing the images and links
 
 == Upgrade Notice ==
 
-= 0.7 =
+= 0.8 =
 
-Added support for images and links. Improvements in error handling when connecting to Google. Some bug fixes, see change log. User interface refresh
+Some bug fixes and simplified code see change log.

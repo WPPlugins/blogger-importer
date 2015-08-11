@@ -8,7 +8,9 @@
 
 class Blogger_Importer_Blog 
 {
-    var $ID;
+    //We have 2 fields with the same name but different case, that should be eliminated, however need to ensure can be upgraded ok
+    var $ID; //Wordpress ID for the blog
+    var $id; //Blogger ID for the blog
     var $comments_url;
     
         function init_defaults($totalposts,$totalcomments)
@@ -49,8 +51,12 @@ class Blogger_Importer_Blog
         {
             //AGC: Moved the parameter parsing out to start and the importing into separate functions.
             //25/1/2013 Suppress post revisions whilst we are importing
+            //10/3/2014 Added start action as proposed by katazina
             remove_post_type_support('post', 'revisions');
             
+            if (!$this->posts_done && !$this->comments_done)
+                do_action('import_start', 'blogger');
+                
             $this->importer_started = time();
             
             if (!$this->import_posts($connector))
@@ -479,12 +485,12 @@ class Blogger_Importer_Blog
             }
 
             $p2 = sprintf(__('%d of %d', 'blogger-importer'), $this->posts_done, $this->total_posts);
-            $p3 = sprintf(__('%d posts skipped', 'blogger-importer'), $this->posts_skipped);
+            $p3 = sprintf(_n('%d post skipped', '%d posts skipped', $this->posts_skipped, 'blogger-importer'), $this->posts_skipped);
             $c1 = $this->total_comments == 0 ? 100 : ($this->comments_done / $this->total_comments) * 100;
             $c2 = sprintf(__('%d of %d', 'blogger-importer'), $this->comments_done, $this->total_comments);
-            $c3 = sprintf(__('%d comments skipped', 'blogger-importer'), $this->comments_skipped);
+            $c3 = sprintf(_n('%d comment skipped', '%d comments skipped', $this->comments_skipped, 'blogger-importer'), $this->comments_skipped);
             $i1 = isset($this->images_done) ? (int)$this->images_done : 0; 
-            $i3 = sprintf(__('%d images skipped', 'blogger-importer'), $this->images_skipped);
+            $i3 = sprintf(_n('%d image skipped', '%d images skipped', $this->images_skipped, 'blogger-importer'), $this->images_skipped);
             
             $l1 = isset($this->links_done) ? (int)$this->links_done : 0;
 
@@ -493,14 +499,15 @@ class Blogger_Importer_Blog
         
         function get_authors()
         {
+            //Get a list of blogger authors who created the posts
+            //Use a subquery rather than 2 statements to avoid issue with prepare not being able to sanitise an array of integers, also protects us if the post_id type changes
             global $wpdb;
             global $current_user;
         
-                $post_ids = (array )$wpdb->get_col($wpdb->prepare("SELECT post_id FROM $wpdb->postmeta WHERE meta_key = 'blogger_blog' AND meta_value = %s", $this->host));
-                $post_ids = join(',', $post_ids);
-                $authors = (array )$wpdb->get_col($wpdb->prepare("SELECT DISTINCT meta_value FROM $wpdb->postmeta WHERE meta_key = 'blogger_author' AND post_id IN (%s)",$post_ids));
+                $authors = (array )$wpdb->get_col($wpdb->prepare("SELECT DISTINCT meta_value FROM $wpdb->postmeta WHERE meta_key = 'blogger_author' AND post_id IN (SELECT post_id FROM $wpdb->postmeta WHERE meta_key = 'blogger_blog' AND meta_value = %s)",$this->host));
                 
                 $this->authors = array_map(null, $authors, array_fill(0, count($authors), $current_user->ID));
+                $this->save_vars();
         }
         
         /*
@@ -793,15 +800,9 @@ class Blogger_Importer_Blog
         function save_vars()
         {
             $vars = get_object_vars($this);
-            //http://core.trac.wordpress.org/ticket/13480
-            //Calling update options multiple times in a page (or ajax call) means that the cache kicks in and does not save to DB??
-          
             //Store each blog it it's own setting so that we retrieve and save less data each time it updates the stats
-            if (!update_option('blogger_importer_blog_'.$this->ID, $vars)) {
-                    Blogger_Import::_log('Error saving blogger status');
-                    Blogger_Import::_log(var_export(get_object_vars($this),true));
-            };
-            
+            //11/3/2014 Simplified function to avoid logging unneccesary errors
+            update_option('blogger_importer_blog_'.$this->ID, $vars);            
             return !empty($vars);  
         }
     
