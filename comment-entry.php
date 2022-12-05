@@ -1,9 +1,6 @@
 <?php
-
 /**
- * @author Andy Clark
- * @copyright 2013
- * A data object representing the data to be added into Wordpress 
+ * A data object representing the data to be added into WordPress 
  * 10/3/2014 Added errorhandling to cope with comments that don't link to a post
  */
 
